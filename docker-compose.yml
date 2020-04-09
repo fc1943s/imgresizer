@@ -1,0 +1,33 @@
+version: '3.5'
+
+networks:
+  imgresizer:
+    driver: bridge
+    
+services:
+  rabbitmq:
+    container_name: rabbitmq
+    image: library/rabbitmq:3.8.3-management-alpine
+    ports:
+      - 5672:5672
+      - 15672:15672
+    networks:
+      - imgresizer
+    restart: unless-stopped
+
+  api:
+    container_name: api
+    build: api
+    ports:
+      - 5000:5000
+    networks:
+      - imgresizer
+    restart: unless-stopped
+
+  resizer:
+    container_name: resizer
+    build: resizer
+    networks:
+      - imgresizer
+    restart: unless-stopped
+
