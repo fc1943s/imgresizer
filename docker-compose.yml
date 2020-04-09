@@ -18,16 +18,26 @@ services:
   api:
     container_name: api
     build: api
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      PYTHONUNBUFFERED: 1
     ports:
       - 5000:5000
     networks:
       - imgresizer
+    depends_on:
+      - rabbitmq
     restart: unless-stopped
 
   resizer:
     container_name: resizer
     build: resizer
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      PYTHONUNBUFFERED: 1 
     networks:
       - imgresizer
+    depends_on:
+      - rabbitmq
     restart: unless-stopped
 
