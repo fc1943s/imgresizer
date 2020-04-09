@@ -8,6 +8,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . ./
 
+RUN python -m unittest discover
+
 ENTRYPOINT ["python3"]
-CMD ["app.py"]
+CMD ["src/app.py"]
 

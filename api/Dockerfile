@@ -7,5 +7,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . ./
 
 ENTRYPOINT ["python3"]
-CMD ["app.py"]
+CMD ["src/app.py"]
 
