@@ -1,57 +1,59 @@
 from PIL import Image
+from retry import retry
 import pika
+import pika.exceptions
 import io
 import os
-
+import logging
 
 default_image_size = 384, 384
 
 
 def resize(buffer):
-    im = Image.open(buffer)
-    print(f"Processing image of size {im.size}")
-    out = im.resize(default_image_size)
+    img = Image.open(buffer)
+    print(f"Processing image of size {img.size}")
+    out = img.resize(default_image_size)
     buffer = io.BytesIO()
     out.save(buffer, "PNG")
     return buffer
 
 
-class Server:
-    def __init__(self):
-        self.connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host=os.getenv("RABBITMQ_HOST", "localhost")))
+def on_message(channel, method, header, body):
+    try:
+        buffer = io.BytesIO(body)
+        buffer = resize(buffer)
+        img_bytes = buffer.getvalue()
+        body = img_bytes
+    except:
+        logging.exception("Error trying to resize image")
+        body = []
 
-        self.channel = self.connection.channel()
-        self.channel.queue_declare(queue='rpc_queue')
+    channel.basic_publish(exchange='',
+                          routing_key=header.reply_to,
+                          properties=pika.BasicProperties(correlation_id=header.correlation_id),
+                          body=body)
+    channel.basic_ack(delivery_tag=method.delivery_tag)
 
-        self.channel.basic_qos(prefetch_count=1)
-        self.channel.basic_consume(queue='rpc_queue', on_message_callback=self.on_request)
 
-    @staticmethod
-    def on_request(ch, method, props, body):
-        try:
-            try:
-                buffer = io.BytesIO(body)
-                buffer = resize(buffer)
-                img_bytes = buffer.getvalue()
-                body = img_bytes
-            except Exception as e:
-                print(f"Error trying to resize image: {e}")
-                body = []
+@retry(pika.exceptions.AMQPConnectionError, delay=5, jitter=(1, 3))
+def consume():
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host=os.getenv("RABBITMQ_HOST", "localhost")))
 
-            ch.basic_publish(exchange='',
-                             routing_key=props.reply_to,
-                             properties=pika.BasicProperties(correlation_id=props.correlation_id),
-                             body=body)
-            ch.basic_ack(delivery_tag=method.delivery_tag)
-        except Exception as e:
-            print(f"Error processing request: {e}")
+    channel = connection.channel()
+    channel.queue_declare(queue='resize_rpc_queue')
+    channel.basic_qos(prefetch_count=1)
+    channel.basic_consume(queue='resize_rpc_queue', on_message_callback=on_message)
 
-    def listen(self):
+    try:
         print("Awaiting RPC requests...")
-        self.channel.start_consuming()
+        channel.start_consuming()
+    except KeyboardInterrupt:
+        channel.stop_consuming()
+        connection.close()
+    except pika.exceptions.ConnectionClosedByBroker:
+        pass
 
 
 if __name__ == '__main__':
-    Server().listen()
-
+    logging.basicConfig()
+    consume()

@@ -1,0 +1,15 @@
+version: '3.5'
+
+networks:
+  imgresizer:
+    driver: bridge
+    
+services:
+  e2e:
+    container_name: e2e
+    build: e2e
+    environment:
+      PYTHONUNBUFFERED: 1
+    networks:
+      - imgresizer
+
