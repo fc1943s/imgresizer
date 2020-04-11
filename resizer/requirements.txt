@@ -1,5 +1,4 @@
 pika==1.1.0
-Pillow-SIMD==7.0.0.post3
 retry==0.9.2
-# Pillow==7.1.1 in case of Pillow-SIMD installation errors on Windows
+Pillow-SIMD==7.0.0.post3 # Pillow==7.1.1 in case of Pillow-SIMD installation errors on Windows
 
